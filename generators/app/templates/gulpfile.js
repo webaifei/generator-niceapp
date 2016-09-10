@@ -1,8 +1,14 @@
+/**
+ * gulp 构建
+ * 1. 开发环境下 livereload
+ * 2. 生成线上文件
+ * 3. 打包
+ */
 const gulp = require('gulp');
 const gulpLoadPlugins = require('gulp-load-plugins');
 const browserSync = require('browser-sync');
 const del = require('del');
-const wiredep = require('wiredep').stream;
+
 
 const $ = gulpLoadPlugins();
 const reload = browserSync.reload;
@@ -18,17 +24,17 @@ gulp.task('styles', () => {
     }).on('error', $.sass.logError))
     .pipe($.autoprefixer({browsers: ['> 1%', 'last 2 versions']}))
     .pipe($.sourcemaps.write())
-    .pipe(gulp.dest('dist/styles'))
+    .pipe(gulp.dest('tmp/styles'))
     .pipe(reload({stream: true}));
 });
 
 gulp.task('scripts', () => {
   return gulp.src('src/scripts/**/*.js')
     .pipe($.plumber())
-    .pipe($.sourcemaps.init())
-    .pipe($.babel())
-    .pipe($.sourcemaps.write('.'))
-    .pipe(gulp.dest('dist/scripts'))
+    // .pipe($.sourcemaps.init())
+    // .pipe($.babel())
+    // .pipe($.sourcemaps.write('.'))
+    .pipe(gulp.dest('tmp/scripts'))
     .pipe(reload({stream: true}));
 });
 
@@ -46,16 +52,16 @@ gulp.task('lint', () => {
   }).pipe(gulp.dest('dist/scripts'));
 });
 
-
+// 合并资源 根据文件类型进行压缩优化 最后输出 包含html
 gulp.task('html', ['styles', 'scripts'], () => {
   return gulp.src('src/*.html')
-    .pipe($.useref({searchPath: ['.tmp', 'src', 'dist']}))
+    .pipe($.useref({searchPath: ['tmp', 'src', 'dist']}))
     .pipe($.if('*.js', $.uglify()))
     .pipe($.if('*.css', $.cssnano({safe: true, autoprefixer: false})))
     .pipe($.if('*.html', $.htmlmin({collapseWhitespace: true})))
     .pipe(gulp.dest('dist'));
 });
-
+// 图片压缩暂时不用 效果不明显 直接使用tinypng实现
 gulp.task('images', () => {
   return gulp.src('src/images/**/*')
     .pipe($.cache($.imagemin({
@@ -78,14 +84,14 @@ gulp.task('images', () => {
 gulp.task('extras', () => {
   return gulp.src([
     'src/*.*',
-    '!src/*.html',
+    // '!src/*.html',
     '!.DS_Store'
   ], {
     dot: true
   }).pipe(gulp.dest('dist'));
 });
 
-gulp.task('clean', del.bind(null, ['dist']));
+gulp.task('clean', del.bind(null, ['dist', 'tmp']));
 // 开发环境
 // 1. css和js在dist中 修改了=>stream
 // 2. images 和html在src中 修改=>reload
@@ -94,7 +100,7 @@ gulp.task('serve', ['styles', 'scripts'], () => {
     notify: false,
     port: 9000,
     server: {
-      baseDir: ['src', 'dist']
+      baseDir: ['src', 'tmp']
     }
   });
 
@@ -118,7 +124,7 @@ gulp.task('serve:dist', () => {
 });
 
 // 构建production包
-gulp.task('build', ['lint', 'html', 'images', 'extras'], () => {
+gulp.task('build', ['html', 'images', 'extras'], () => {
   return gulp.src('dist/**/*').pipe($.size({title: 'build', gzip: true}));
 });
 // zip压缩包
